@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM Ventas — Ferran</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --navy:#0f172a;
@@ -313,12 +312,12 @@
   const SUPABASE_URL = "https://uhtoqhjaagepvlnlzpzw.supabase.co";
   const SUPABASE_KEY = "sb_publishable_URlOqLnFNTmL9huM0BalTw_ypZ7MIY7";
   const TABLE = "contactos_ventas";
-  let supabase = null;
-  try{
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }catch(e){
-    console.error("No se pudo inicializar Supabase:", e);
-  }
+  const REST_URL = `${SUPABASE_URL}/rest/v1/${TABLE}`;
+  const HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": `Bearer ${SUPABASE_KEY}`,
+    "Content-Type": "application/json",
+  };
 
   let contactos = [];
   let filtroActual = "todos";
@@ -326,17 +325,11 @@
 
   async function cargar(){
     const lista = document.getElementById("lista");
-    if(!supabase){
-      lista.innerHTML = '<div class="empty">No se pudo cargar la conexión con la base de datos.</div>';
-      return;
-    }
     lista.innerHTML = '<div class="empty">Cargando...</div>';
     try{
-      const { data, error } = await supabase
-        .from(TABLE)
-        .select("*")
-        .order("created_at", { ascending: false });
-      if(error) throw error;
+      const res = await fetch(`${REST_URL}?select=*&order=created_at.desc`, { headers: HEADERS });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
       contactos = (data || []).map(r => ({
         id: r.id,
         nombre: r.nombre,
@@ -374,7 +367,6 @@
 
   btnGuardar.addEventListener("click", async () => {
     if(!f.nombre.value.trim()) { f.nombre.focus(); return; }
-    if(!supabase){ alert("No hay conexión con la base de datos."); return; }
     const payload = {
       nombre: f.nombre.value.trim(),
       oficio: f.oficio.value.trim(),
@@ -385,13 +377,21 @@
     };
     btnGuardar.disabled = true;
     try{
+      let res;
       if(editandoId){
-        const { error } = await supabase.from(TABLE).update(payload).eq("id", editandoId);
-        if(error) throw error;
+        res = await fetch(`${REST_URL}?id=eq.${editandoId}`, {
+          method: "PATCH",
+          headers: HEADERS,
+          body: JSON.stringify(payload),
+        });
       } else {
-        const { error } = await supabase.from(TABLE).insert(payload);
-        if(error) throw error;
+        res = await fetch(REST_URL, {
+          method: "POST",
+          headers: HEADERS,
+          body: JSON.stringify(payload),
+        });
       }
+      if(!res.ok) throw new Error("HTTP " + res.status);
       limpiarForm();
       await cargar();
     }catch(e){
@@ -501,10 +501,12 @@
 
   async function eliminar(id){
     if(!confirm("¿Eliminar esta llamada?")) return;
-    if(!supabase){ alert("No hay conexión con la base de datos."); return; }
     try{
-      const { error } = await supabase.from(TABLE).delete().eq("id", id);
-      if(error) throw error;
+      const res = await fetch(`${REST_URL}?id=eq.${id}`, {
+        method: "DELETE",
+        headers: HEADERS,
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
       await cargar();
     }catch(e){
       console.error("Error eliminando en Supabase:", e);
