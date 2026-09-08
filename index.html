@@ -33,6 +33,7 @@
     top:0;
     z-index:20;
   }
+  .topbar-inner{max-width:640px;margin:0 auto;}
   .topbar h1{font-size:17px;margin:0 0 10px;}
   .tabs{display:flex;gap:6px;}
   .tab{
@@ -125,10 +126,12 @@
 <body>
 
 <div class="topbar">
-  <h1>📞 CRM Ventas</h1>
-  <div class="tabs">
-    <div class="tab active" data-tab="llamadas">Llamadas</div>
-    <div class="tab" data-tab="guion">Guion</div>
+  <div class="topbar-inner">
+    <h1>📞 CRM Ventas</h1>
+    <div class="tabs">
+      <div class="tab active" data-tab="llamadas">Llamadas</div>
+      <div class="tab" data-tab="guion">Guion</div>
+    </div>
   </div>
 </div>
 
@@ -296,15 +299,7 @@
 <script>
   const TU_NOMBRE = "Ferran";
 
-  const SUPABASE_URL = "https://uhtoqhjaagepvlnlzpzw.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_URlOqLnFNTmL9huM0BalTw_ypZ7MIY7";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const TABLE = "contactos_ventas";
-
-  let contactos = [];
-  let filtroActual = "todos";
-  let editandoId = null;
-
+  // Las pestañas se activan siempre, pase lo que pase con Supabase después.
   document.querySelectorAll(".tab").forEach(t => {
     t.addEventListener("click", () => {
       document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
@@ -315,8 +310,26 @@
     });
   });
 
+  const SUPABASE_URL = "https://uhtoqhjaagepvlnlzpzw.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_URlOqLnFNTmL9huM0BalTw_ypZ7MIY7";
+  const TABLE = "contactos_ventas";
+  let supabase = null;
+  try{
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }catch(e){
+    console.error("No se pudo inicializar Supabase:", e);
+  }
+
+  let contactos = [];
+  let filtroActual = "todos";
+  let editandoId = null;
+
   async function cargar(){
     const lista = document.getElementById("lista");
+    if(!supabase){
+      lista.innerHTML = '<div class="empty">No se pudo cargar la conexión con la base de datos.</div>';
+      return;
+    }
     lista.innerHTML = '<div class="empty">Cargando...</div>';
     try{
       const { data, error } = await supabase
@@ -361,6 +374,7 @@
 
   btnGuardar.addEventListener("click", async () => {
     if(!f.nombre.value.trim()) { f.nombre.focus(); return; }
+    if(!supabase){ alert("No hay conexión con la base de datos."); return; }
     const payload = {
       nombre: f.nombre.value.trim(),
       oficio: f.oficio.value.trim(),
@@ -487,6 +501,7 @@
 
   async function eliminar(id){
     if(!confirm("¿Eliminar esta llamada?")) return;
+    if(!supabase){ alert("No hay conexión con la base de datos."); return; }
     try{
       const { error } = await supabase.from(TABLE).delete().eq("id", id);
       if(error) throw error;
