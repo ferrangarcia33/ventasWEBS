@@ -72,6 +72,7 @@
   input:focus,select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(234,179,8,.15);}
   .btn{border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;}
   .btn-primary{background:var(--amber);color:#1a1a1a;width:100%;}
+  .btn-secondary{background:#f1f5f9;color:var(--navy);}
   .btn-danger{background:transparent;color:var(--red);font-size:12px;padding:4px 8px;}
   .btn-edit{background:transparent;color:var(--blue);font-size:12px;padding:4px 8px;}
   .row-btns{display:flex;gap:8px;margin-top:6px;}
@@ -119,6 +120,29 @@
   .cols ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--gray);line-height:1.6;}
   .hacer h3{color:var(--green);}
   .nohacer h3{color:var(--red);}
+
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,0.55);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    padding:20px;
+    max-width:340px;
+    width:100%;
+    box-shadow:0 10px 30px rgba(0,0,0,0.2);
+  }
+  .modal-box p{font-size:14.5px;color:var(--navy);margin:0 0 16px;}
+  .modal-btns{display:flex;gap:10px;}
+  .modal-btns .btn{flex:1;width:auto;}
+  .btn-danger-solid{background:var(--red);color:#fff;}
   @media (max-width:420px){.cols{grid-template-columns:1fr;gap:10px;}.grid2{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -174,11 +198,12 @@
           </select>
         </div>
       </div>
-      <div class="field">
+      <div class="field" id="campoPrecio">
         <label>Precio vendido (€)</label>
         <input id="fPrecio" placeholder="490" inputmode="numeric">
       </div>
       <button class="btn btn-primary" id="btnGuardar">Añadir</button>
+      <button class="btn btn-secondary hidden" id="btnCancelar" style="width:100%;margin-top:8px;">← Atrás</button>
     </div>
 
     <div class="field" style="margin-bottom:10px;">
@@ -196,6 +221,16 @@
 
     <div id="lista"></div>
     <div class="empty hidden" id="emptyState">Todavía no has añadido ninguna llamada.</div>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal-box">
+      <p id="modalMensaje">¿Eliminar esta llamada?</p>
+      <div class="modal-btns">
+        <button class="btn btn-secondary" id="modalCancelar">Cancelar</button>
+        <button class="btn btn-danger-solid" id="modalAceptar">Eliminar</button>
+      </div>
+    </div>
   </div>
 
   <div id="tab-guion" class="hidden">
@@ -357,13 +392,24 @@
     precio: document.getElementById("fPrecio"),
   };
   const btnGuardar = document.getElementById("btnGuardar");
+  const btnCancelar = document.getElementById("btnCancelar");
 
   function limpiarForm(){
     f.nombre.value = ""; f.oficio.value = ""; f.zona.value = "";
     f.telefono.value = ""; f.estado.value = "pendiente"; f.precio.value = "";
     editandoId = null;
     btnGuardar.textContent = "Añadir";
+    btnCancelar.classList.add("hidden");
+    actualizarVisibilidadPrecio();
   }
+
+  btnCancelar.addEventListener("click", limpiarForm);
+
+  function actualizarVisibilidadPrecio(){
+    document.getElementById("campoPrecio").classList.toggle("hidden", f.estado.value !== "si");
+  }
+  f.estado.addEventListener("change", actualizarVisibilidadPrecio);
+  actualizarVisibilidadPrecio();
 
   btnGuardar.addEventListener("click", async () => {
     if(!f.nombre.value.trim()) { f.nombre.focus(); return; }
@@ -457,11 +503,12 @@
         const div = document.createElement("div");
         div.className = "contact";
         const metaParts = [c.oficio, c.zona].filter(Boolean).join(" · ");
+        const telefonoHtml = c.telefono ? resaltarTelefono(c.telefono, busqueda) : "";
         div.innerHTML = `
           <div class="contact-top">
             <div>
               <div class="contact-name">${escapeHtml(c.nombre)}</div>
-              <div class="contact-meta">${escapeHtml(metaParts)}${c.telefono ? " · " + escapeHtml(c.telefono) : ""}</div>
+              <div class="contact-meta">${escapeHtml(metaParts)}${telefonoHtml ? " · " + telefonoHtml : ""}</div>
             </div>
             <span class="badge ${estadoBadgeClass[c.estado] || "badge-pendiente"}">${estadoLabel[c.estado] || "Pendiente"}</span>
           </div>
@@ -494,13 +541,37 @@
     if(!c) return;
     f.nombre.value = c.nombre; f.oficio.value = c.oficio; f.zona.value = c.zona;
     f.telefono.value = c.telefono; f.estado.value = c.estado; f.precio.value = c.precio;
+    actualizarVisibilidadPrecio();
     editandoId = id;
     btnGuardar.textContent = "Guardar cambios";
+    btnCancelar.classList.remove("hidden");
     window.scrollTo({top:0, behavior:"smooth"});
   }
 
+  const modalOverlay = document.getElementById("modalOverlay");
+  const modalMensaje = document.getElementById("modalMensaje");
+  const modalAceptar = document.getElementById("modalAceptar");
+  const modalCancelar = document.getElementById("modalCancelar");
+
+  function confirmarModal(mensaje){
+    return new Promise(resolve => {
+      modalMensaje.textContent = mensaje;
+      modalOverlay.classList.remove("hidden");
+      const limpiar = () => {
+        modalOverlay.classList.add("hidden");
+        modalAceptar.removeEventListener("click", onAceptar);
+        modalCancelar.removeEventListener("click", onCancelar);
+      };
+      const onAceptar = () => { limpiar(); resolve(true); };
+      const onCancelar = () => { limpiar(); resolve(false); };
+      modalAceptar.addEventListener("click", onAceptar);
+      modalCancelar.addEventListener("click", onCancelar);
+    });
+  }
+
   async function eliminar(id){
-    if(!confirm("¿Eliminar esta llamada?")) return;
+    const confirmado = await confirmarModal("¿Eliminar esta llamada?");
+    if(!confirmado) return;
     try{
       const res = await fetch(`${REST_URL}?id=eq.${id}`, {
         method: "DELETE",
@@ -518,6 +589,22 @@
     const div = document.createElement("div");
     div.textContent = str || "";
     return div.innerHTML;
+  }
+
+  function resaltarTelefono(telefono, queryDigits){
+    if(!telefono) return "";
+    if(!queryDigits) return escapeHtml(telefono);
+    const patron = queryDigits.split("").join("[^0-9]*");
+    let regex;
+    try{ regex = new RegExp(patron); } catch(e){ return escapeHtml(telefono); }
+    const match = telefono.match(regex);
+    if(!match) return escapeHtml(telefono);
+    const idx = match.index;
+    const len = match[0].length;
+    const antes = escapeHtml(telefono.slice(0, idx));
+    const coincide = escapeHtml(telefono.slice(idx, idx + len));
+    const despues = escapeHtml(telefono.slice(idx + len));
+    return `${antes}<u style="text-decoration-color:var(--amber);text-decoration-thickness:2px;">${coincide}</u>${despues}`;
   }
 
   const g = {
