@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Ventas — Ferran</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --navy:#0f172a;
+    --amber:#eab308;
+    --gray:#475569;
+    --line:#e2e8f0;
+    --bg:#fafaf9;
+    --card:#ffffff;
+    --green:#16a34a;
+    --red:#dc2626;
+    --blue:#2563eb;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--navy);
+    padding-bottom:40px;
+  }
+  .topbar{
+    background:var(--navy);
+    color:#fff;
+    padding:14px 16px;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .topbar h1{font-size:17px;margin:0 0 10px;}
+  .tabs{display:flex;gap:6px;}
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:8px 4px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    background:rgba(255,255,255,0.08);
+    color:#cbd5e1;
+  }
+  .tab.active{background:var(--amber);color:#1a1a1a;}
+  .wrap{max-width:640px;margin:0 auto;padding:16px;}
+  .hidden{display:none !important;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:14px;
+  }
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+  label{font-size:11px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.03em;}
+  input,select{
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:9px 10px;
+    font-size:14.5px;
+    color:var(--navy);
+    background:#fff;
+    width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(234,179,8,.15);}
+  .btn{border:none;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;}
+  .btn-primary{background:var(--amber);color:#1a1a1a;width:100%;}
+  .btn-danger{background:transparent;color:var(--red);font-size:12px;padding:4px 8px;}
+  .btn-edit{background:transparent;color:var(--blue);font-size:12px;padding:4px 8px;}
+  .row-btns{display:flex;gap:8px;margin-top:6px;}
+
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .filter-chip{
+    padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--line);background:#fff;color:var(--gray);cursor:pointer;
+  }
+  .filter-chip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  .contact{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .contact-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .contact-name{font-size:15px;font-weight:700;}
+  .contact-meta{font-size:12.5px;color:var(--gray);margin-top:2px;}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+  .badge-si{background:#dcfce7;color:var(--green);}
+  .badge-no{background:#fee2e2;color:var(--red);}
+  .badge-pensando{background:#fef9c3;color:#92400e;}
+  .badge-pendiente{background:#e2e8f0;color:var(--gray);}
+  .contact-price{font-size:13.5px;font-weight:700;color:var(--green);margin-top:6px;}
+  .empty{text-align:center;color:var(--gray);font-size:13.5px;padding:30px 10px;}
+
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+  .summary .card{padding:10px;text-align:center;margin-bottom:0;}
+  .summary .num{font-size:18px;font-weight:800;}
+  .summary .lbl{font-size:10.5px;color:var(--gray);text-transform:uppercase;}
+
+  .quote{
+    font-style:italic;font-size:14px;line-height:1.5;color:#1e293b;
+    background:var(--card);border-left:3px solid var(--amber);
+    padding:9px 12px;border-radius:4px;margin-bottom:4px;
+  }
+  .note{font-size:11.5px;color:#94a3b8;font-style:italic;margin:3px 0 10px 4px;}
+  .step h2{font-size:14px;margin:14px 0 4px;}
+  .section-title{
+    font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--amber);margin:22px 0 10px;
+  }
+  .branch{margin-bottom:10px;}
+  .branch b{font-size:13.5px;}
+  hr{border:none;border-top:1px solid var(--line);margin:18px 0;}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .cols h3{font-size:12px;margin:0 0 6px;}
+  .cols ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--gray);line-height:1.6;}
+  .hacer h3{color:var(--green);}
+  .nohacer h3{color:var(--red);}
+  @media (max-width:420px){.cols{grid-template-columns:1fr;gap:10px;}.grid2{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>📞 CRM Ventas</h1>
+  <div class="tabs">
+    <div class="tab active" data-tab="llamadas">Llamadas</div>
+    <div class="tab" data-tab="guion">Guion</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div id="tab-llamadas">
+
+    <div class="summary">
+      <div class="card"><div class="num" id="statTotal">0</div><div class="lbl">Total</div></div>
+      <div class="card"><div class="num" id="statSi">0</div><div class="lbl">Vendidas</div></div>
+      <div class="card"><div class="num" id="statEuros">0€</div><div class="lbl">Facturado</div></div>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>Cliente / Negocio</label>
+        <input id="fNombre" placeholder="Ej: Reparaciones Marc">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Oficio</label>
+          <input id="fOficio" placeholder="Fontanero">
+        </div>
+        <div class="field">
+          <label>Zona</label>
+          <input id="fZona" placeholder="Sant Andreu">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Teléfono</label>
+          <input id="fTelefono" placeholder="600 000 000">
+        </div>
+        <div class="field">
+          <label>Estado</label>
+          <select id="fEstado">
+            <option value="pendiente">Pendiente</option>
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+            <option value="pensando">Se lo piensa</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Precio vendido (€)</label>
+        <input id="fPrecio" placeholder="490" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" id="btnGuardar">Añadir</button>
+    </div>
+
+    <div class="field" style="margin-bottom:10px;">
+      <label>Buscar por teléfono</label>
+      <input id="buscarTelefono" placeholder="Ej: 677 87 03 94">
+    </div>
+
+    <div class="filters">
+      <div class="filter-chip active" data-filter="todos">Todos</div>
+      <div class="filter-chip" data-filter="si">Sí</div>
+      <div class="filter-chip" data-filter="no">No</div>
+      <div class="filter-chip" data-filter="pensando">Se lo piensa</div>
+      <div class="filter-chip" data-filter="pendiente">Pendiente</div>
+    </div>
+
+    <div id="lista"></div>
+    <div class="empty hidden" id="emptyState">Todavía no has añadido ninguna llamada.</div>
+  </div>
+
+  <div id="tab-guion" class="hidden">
+    <div class="card">
+      <div class="grid2">
+        <div class="field">
+          <label>Cliente</label>
+          <input id="gNombre" placeholder="Luis Fernando">
+        </div>
+        <div class="field">
+          <label>Oficio</label>
+          <input id="gOficio" placeholder="fontanero">
+        </div>
+        <div class="field">
+          <label>Zona</label>
+          <input id="gZona" placeholder="Gràcia">
+        </div>
+        <div class="field">
+          <label>Precio</label>
+          <input id="gPrecio" placeholder="490" inputmode="numeric">
+        </div>
+      </div>
+      <div class="field">
+        <label>Precio mínimo (regateo)</label>
+        <input id="gPrecioMin" placeholder="420" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="step"><h2>1 · Apertura (10-15 seg)</h2><div class="quote" id="q1"></div></div>
+    <div class="step"><h2>2 · Contexto rápido</h2><div class="quote" id="q2"></div></div>
+    <div class="step">
+      <h2>3 · Mostrar la web</h2>
+      <div class="quote" id="q3"></div>
+      <div class="note">→ Mándalo por WhatsApp en ese momento</div>
+    </div>
+    <div class="step">
+      <h2>4 · Deja que la mire, luego pregunta</h2>
+      <div class="quote" id="q4"></div>
+      <div class="note">→ Escucha su reacción, no hables encima</div>
+    </div>
+    <div class="step"><h2>5 · Explica el valor</h2><div class="quote" id="q5"></div></div>
+    <div class="step">
+      <h2>6 · Precio</h2>
+      <div class="quote" id="q6"></div>
+      <div class="note">→ Cállate después de decirlo — no rellenes el silencio</div>
+    </div>
+
+    <div class="section-title">Según cómo responda (no son pasos, elige el que toque)</div>
+    <div class="branch"><b>Dice que sí:</b><div class="quote" id="r1"></div></div>
+    <div class="branch"><b>Pregunta por el dominio:</b>
+      <div class="quote">"Sí, la web queda con su propio dominio, ya montado y funcionando bajo tu nombre."</div>
+    </div>
+    <div class="branch"><b>Duda / se lo piensa:</b>
+      <div class="quote">"Sin problema. Te dejo el link para que la mires con calma — ¿te parece si te escribo mañana para resolver cualquier duda?"</div>
+    </div>
+    <div class="branch"><b>Dice que no:</b>
+      <div class="quote">"Sin problema, gracias por tu tiempo. Si cambias de idea más adelante no dude en contactarme."</div>
+    </div>
+    <div class="branch"><b>Dice que ya le están haciendo una:</b>
+      <div class="quote">"Ah, perfecto, me alegro. Oye, y si al final no te convence del todo o tarda más de la cuenta, ¿te importa que te la enseñe igualmente? Así comparas sin compromiso."</div>
+    </div>
+
+    <hr>
+    <div class="section-title" style="margin-top:0;">Si te regatean</div>
+    <p style="font-size:12.5px;color:var(--gray);line-height:1.6;">
+      Máx. descuento 10-15% (ej. <span id="pRango"></span>). Solo cedes si ya dijo que sí y
+      duda solo del precio, nunca antes. Si bajas, pide algo a cambio (cerrarlo hoy mismo).
+    </p>
+    <div class="quote" id="q7"></div>
+    <div class="quote" id="q8" style="margin-top:8px;"></div>
+    <div class="note">→ Y te callas</div>
+
+    <hr>
+    <div class="cols">
+      <div class="hacer">
+        <h3>HACER</h3>
+        <ul>
+          <li>Habla poco, escucha mucho</li>
+          <li>Silencio tras link / precio / cierre</li>
+          <li>Web antes de precio, siempre</li>
+          <li>Llama entre 9:30-10:30 o 13:00-14:00</li>
+          <li>Cierra con fecha concreta</li>
+        </ul>
+      </div>
+      <div class="nohacer">
+        <h3>NO HACER</h3>
+        <ul>
+          <li>No menciones IA ni herramientas</li>
+          <li>No prometas nada sin confirmar</li>
+          <li>No bajes precio sin que lo pidan</li>
+          <li>No insistas +2 veces sin respuesta</li>
+          <li>No des el link editable antes de cobrar</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const TU_NOMBRE = "Ferran";
+
+  const SUPABASE_URL = "https://uhtoqhjaagepvlnlzpzw.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_URlOqLnFNTmL9huM0BalTw_ypZ7MIY7";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const TABLE = "contactos_ventas";
+
+  let contactos = [];
+  let filtroActual = "todos";
+  let editandoId = null;
+
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      const target = t.dataset.tab;
+      document.getElementById("tab-llamadas").classList.toggle("hidden", target !== "llamadas");
+      document.getElementById("tab-guion").classList.toggle("hidden", target !== "guion");
+    });
+  });
+
+  async function cargar(){
+    const lista = document.getElementById("lista");
+    lista.innerHTML = '<div class="empty">Cargando...</div>';
+    try{
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select("*")
+        .order("created_at", { ascending: false });
+      if(error) throw error;
+      contactos = (data || []).map(r => ({
+        id: r.id,
+        nombre: r.nombre,
+        oficio: r.oficio || "",
+        zona: r.zona || "",
+        telefono: r.telefono || "",
+        estado: r.estado || "pendiente",
+        precio: r.precio != null ? String(r.precio) : "",
+      }));
+    }catch(e){
+      console.error("Error cargando de Supabase:", e);
+      contactos = [];
+      lista.innerHTML = '<div class="empty">No se pudo conectar con la base de datos.</div>';
+      return;
+    }
+    render();
+  }
+
+  const f = {
+    nombre: document.getElementById("fNombre"),
+    oficio: document.getElementById("fOficio"),
+    zona: document.getElementById("fZona"),
+    telefono: document.getElementById("fTelefono"),
+    estado: document.getElementById("fEstado"),
+    precio: document.getElementById("fPrecio"),
+  };
+  const btnGuardar = document.getElementById("btnGuardar");
+
+  function limpiarForm(){
+    f.nombre.value = ""; f.oficio.value = ""; f.zona.value = "";
+    f.telefono.value = ""; f.estado.value = "pendiente"; f.precio.value = "";
+    editandoId = null;
+    btnGuardar.textContent = "Añadir";
+  }
+
+  btnGuardar.addEventListener("click", async () => {
+    if(!f.nombre.value.trim()) { f.nombre.focus(); return; }
+    const payload = {
+      nombre: f.nombre.value.trim(),
+      oficio: f.oficio.value.trim(),
+      zona: f.zona.value.trim(),
+      telefono: f.telefono.value.trim(),
+      estado: f.estado.value,
+      precio: f.precio.value.trim() ? parseFloat(f.precio.value.trim()) : null,
+    };
+    btnGuardar.disabled = true;
+    try{
+      if(editandoId){
+        const { error } = await supabase.from(TABLE).update(payload).eq("id", editandoId);
+        if(error) throw error;
+      } else {
+        const { error } = await supabase.from(TABLE).insert(payload);
+        if(error) throw error;
+      }
+      limpiarForm();
+      await cargar();
+    }catch(e){
+      console.error("Error guardando en Supabase:", e);
+      alert("No se pudo guardar. Revisa tu conexión.");
+    }
+    btnGuardar.disabled = false;
+  });
+
+  document.querySelectorAll(".filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      filtroActual = chip.dataset.filter;
+      render();
+    });
+  });
+
+  const inputBuscar = document.getElementById("buscarTelefono");
+  function normalizarTelefono(t){
+    return (t || "").replace(/[^0-9]/g, "");
+  }
+  inputBuscar.addEventListener("input", render);
+
+  const estadoLabel = {si:"Sí", no:"No", pensando:"Se lo piensa", pendiente:"Pendiente"};
+  const estadoBadgeClass = {si:"badge-si", no:"badge-no", pensando:"badge-pensando", pendiente:"badge-pendiente"};
+
+  function render(){
+    const lista = document.getElementById("lista");
+    const empty = document.getElementById("emptyState");
+    let datos = contactos;
+    if(filtroActual !== "todos"){
+      datos = datos.filter(c => c.estado === filtroActual);
+    }
+
+    const busqueda = normalizarTelefono(inputBuscar.value);
+    let mensajeBusqueda = "";
+    if(busqueda.length > 0){
+      const antesDeBuscar = datos.length;
+      datos = datos.filter(c => normalizarTelefono(c.telefono).includes(busqueda));
+      if(datos.length === 0){
+        mensajeBusqueda = `Ningún contacto con ese teléfono` +
+          (filtroActual !== "todos" ? ` en "${estadoLabel[filtroActual]}"` : "") + ".";
+      } else {
+        mensajeBusqueda = `${datos.length} resultado(s) encontrado(s).`;
+      }
+    }
+
+    lista.innerHTML = "";
+    if(mensajeBusqueda){
+      const msg = document.createElement("div");
+      msg.className = "note";
+      msg.style.margin = "0 0 8px 2px";
+      msg.textContent = mensajeBusqueda;
+      lista.appendChild(msg);
+    }
+
+    if(datos.length === 0){
+      empty.classList.toggle("hidden", busqueda.length > 0);
+    } else {
+      empty.classList.add("hidden");
+      datos.forEach(c => {
+        const div = document.createElement("div");
+        div.className = "contact";
+        const metaParts = [c.oficio, c.zona].filter(Boolean).join(" · ");
+        div.innerHTML = `
+          <div class="contact-top">
+            <div>
+              <div class="contact-name">${escapeHtml(c.nombre)}</div>
+              <div class="contact-meta">${escapeHtml(metaParts)}${c.telefono ? " · " + escapeHtml(c.telefono) : ""}</div>
+            </div>
+            <span class="badge ${estadoBadgeClass[c.estado] || "badge-pendiente"}">${estadoLabel[c.estado] || "Pendiente"}</span>
+          </div>
+          ${c.estado === "si" && c.precio ? `<div class="contact-price">${escapeHtml(c.precio)}€ vendidos</div>` : ""}
+          <div class="row-btns">
+            <button class="btn-edit" data-id="${c.id}">Editar</button>
+            <button class="btn-danger" data-id="${c.id}">Eliminar</button>
+          </div>
+        `;
+        lista.appendChild(div);
+      });
+
+      lista.querySelectorAll(".btn-edit").forEach(b => {
+        b.addEventListener("click", () => editar(b.dataset.id));
+      });
+      lista.querySelectorAll(".btn-danger").forEach(b => {
+        b.addEventListener("click", () => eliminar(b.dataset.id));
+      });
+    }
+
+    document.getElementById("statTotal").textContent = contactos.length;
+    const vendidas = contactos.filter(c => c.estado === "si");
+    document.getElementById("statSi").textContent = vendidas.length;
+    const totalEuros = vendidas.reduce((sum, c) => sum + (parseFloat(c.precio) || 0), 0);
+    document.getElementById("statEuros").textContent = totalEuros + "€";
+  }
+
+  function editar(id){
+    const c = contactos.find(x => x.id === id);
+    if(!c) return;
+    f.nombre.value = c.nombre; f.oficio.value = c.oficio; f.zona.value = c.zona;
+    f.telefono.value = c.telefono; f.estado.value = c.estado; f.precio.value = c.precio;
+    editandoId = id;
+    btnGuardar.textContent = "Guardar cambios";
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+
+  async function eliminar(id){
+    if(!confirm("¿Eliminar esta llamada?")) return;
+    try{
+      const { error } = await supabase.from(TABLE).delete().eq("id", id);
+      if(error) throw error;
+      await cargar();
+    }catch(e){
+      console.error("Error eliminando en Supabase:", e);
+      alert("No se pudo eliminar. Revisa tu conexión.");
+    }
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  const g = {
+    nombre: document.getElementById("gNombre"),
+    oficio: document.getElementById("gOficio"),
+    zona: document.getElementById("gZona"),
+    precio: document.getElementById("gPrecio"),
+    precioMin: document.getElementById("gPrecioMin"),
+  };
+  function gval(el, fallback){ const v = el.value.trim(); return v.length ? v : fallback; }
+
+  function renderGuion(){
+    const oficio = gval(g.oficio, "[oficio]");
+    const zona = gval(g.zona, "[zona]");
+    const precio = gval(g.precio, "[precio]");
+    const precioMin = gval(g.precioMin, "[precio mínimo]");
+    const nombre = gval(g.nombre, "");
+    const saludo = nombre ? `Hola ${nombre}, ¿qué tal?` : `Hola, ¿qué tal?`;
+
+    document.getElementById("q1").textContent =
+      `"${saludo} Soy ${TU_NOMBRE}, te llamo porque he preparado algo para tu negocio que creo te puede interesar. ¿Tienes 2 minutos?"`;
+    document.getElementById("q2").textContent =
+      `"Mira, te cuento rápido: vi tu ficha de Google, tienes muy buena valoración, pero no apareces con web cuando la gente busca ${oficio} por ${zona}. Eso significa que ahora mismo esas búsquedas se las está llevando la competencia, y seguramente estés perdiendo bastantes clientes por esa razón."`;
+    document.getElementById("q3").textContent =
+      `"Te he preparado ya una web de muestra con tu información real — nombre, teléfono, tus reseñas de Google, tus fotos de trabajos. Te paso el link ahora, dale un vistazo mientras hablamos."`;
+    document.getElementById("q4").textContent =
+      `"¿Qué te parece? ¿Se parece a cómo trabajas tú?"`;
+    document.getElementById("q5").textContent =
+      `"Esta web hace que cuando alguien busque '${oficio} ${zona}' en Google, te encuentre a ti, vea tus reseñas reales y te llame o escriba por WhatsApp directamente — sin fricción."`;
+    document.getElementById("q6").textContent =
+      `"El proyecto completo son ${precio}€, pago único. Sin mensualidades ocultas."`;
+    document.getElementById("r1").textContent =
+      `"Perfecto, te paso el número de Bizum/cuenta ahora mismo y en cuanto lo confirmes te dejo la web ya funcionando."`;
+    document.getElementById("pRango").textContent = `${precio}€ → ${precioMin}€ mínimo`;
+    document.getElementById("q7").textContent =
+      `"Lo entiendo. Piensa que con un solo cliente nuevo que te llegue por la web ya la has amortizado. ¿Qué es lo que te hace dudar, el precio en sí o quieres pensarlo con calma?"`;
+    document.getElementById("q8").textContent =
+      `"Te puedo dejar en ${precioMin}€ si lo cerramos hoy — es lo máximo que puedo ajustar."`;
+  }
+  Object.values(g).forEach(el => el.addEventListener("input", renderGuion));
+  renderGuion();
+
+  cargar();
+</script>
+</body>
+</html>
