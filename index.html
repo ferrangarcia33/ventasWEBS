@@ -208,6 +208,10 @@
         <label for="fPrecio">Precio vendido (€)</label>
         <input id="fPrecio" placeholder="490" inputmode="numeric">
       </div>
+      <div class="field" id="campoUrl">
+        <label for="fUrl">URL de la web</label>
+        <input id="fUrl" placeholder="https://negocio-web.base44.app/">
+      </div>
       <button class="btn btn-primary" id="btnGuardar">Añadir</button>
       <button class="btn btn-secondary hidden" id="btnCancelar" style="width:100%;margin-top:8px;">← Atrás</button>
     </div>
@@ -247,9 +251,21 @@
           <input id="gNombre" placeholder="Luis Fernando">
         </div>
         <div class="field">
+          <label for="gValoracion">Valoración (★)</label>
+          <input id="gValoracion" placeholder="5" inputmode="numeric">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="gResenas">Nº reseñas</label>
+          <input id="gResenas" placeholder="27" inputmode="numeric">
+        </div>
+        <div class="field">
           <label for="gOficio">Oficio</label>
           <input id="gOficio" placeholder="fontanero">
         </div>
+      </div>
+      <div class="grid2">
         <div class="field">
           <label for="gZona">Zona</label>
           <input id="gZona" placeholder="Gràcia">
@@ -260,27 +276,26 @@
         </div>
       </div>
       <div class="field">
+        <label for="gLink">Link de la web</label>
+        <input id="gLink" placeholder="https://marco-fix-now.base44.app/">
+      </div>
+      <div class="field">
         <label for="gPrecioMin">Precio mínimo (regateo)</label>
         <input id="gPrecioMin" placeholder="420" inputmode="numeric">
       </div>
     </div>
 
-    <div class="step"><h2>1 · Apertura (10-15 seg)</h2><div class="quote" id="q1"></div></div>
-    <div class="step"><h2>2 · Contexto rápido</h2><div class="quote" id="q2"></div></div>
     <div class="step">
-      <h2>3 · Mostrar la web</h2>
-      <div class="quote" id="q3"></div>
-      <div class="note">→ Mándalo por WhatsApp en ese momento</div>
+      <h2>1 · Mensaje inicial (WhatsApp)</h2>
+      <div class="quote" id="q1" style="white-space:pre-line;"></div>
+      <div class="note">→ Cópialo y mándalo tal cual, con el link ya incluido</div>
     </div>
+    <div class="step"><h2>2 · Si no responde en 2-3 días</h2><div class="quote" id="q2"></div></div>
+    <div class="step"><h2>3 · Si responde con interés</h2><div class="quote" id="q3"></div></div>
+    <div class="step"><h2>4 · Explica el valor</h2><div class="quote" id="q4"></div></div>
     <div class="step">
-      <h2>4 · Deja que la mire, luego pregunta</h2>
-      <div class="quote" id="q4"></div>
-      <div class="note">→ Escucha su reacción, no hables encima</div>
-    </div>
-    <div class="step"><h2>5 · Explica el valor</h2><div class="quote" id="q5"></div></div>
-    <div class="step">
-      <h2>6 · Precio</h2>
-      <div class="quote" id="q6"></div>
+      <h2>5 · Precio</h2>
+      <div class="quote" id="q5"></div>
       <div class="note">→ Cállate después de decirlo — no rellenes el silencio</div>
     </div>
 
@@ -386,6 +401,7 @@
         telefono: r.telefono || "",
         estado: r.estado || "pendiente",
         precio: r.precio != null ? String(r.precio) : "",
+        url: r.url || "",
       }));
     }catch(e){
       console.error("Error cargando de Supabase:", e);
@@ -406,6 +422,7 @@
     telefono: document.getElementById("fTelefono"),
     estado: document.getElementById("fEstado"),
     precio: document.getElementById("fPrecio"),
+    url: document.getElementById("fUrl"),
   };
   const btnGuardar = document.getElementById("btnGuardar");
   const btnCancelar = document.getElementById("btnCancelar");
@@ -413,6 +430,7 @@
   function limpiarForm(){
     f.nombre.value = ""; f.oficio.value = ""; f.zona.value = "";
     f.telefono.value = ""; f.estado.value = "pendiente"; f.precio.value = "";
+    f.url.value = "";
     editandoId = null;
     btnGuardar.textContent = "Añadir";
     btnCancelar.classList.add("hidden");
@@ -422,7 +440,9 @@
   btnCancelar.addEventListener("click", limpiarForm);
 
   function actualizarVisibilidadPrecio(){
-    document.getElementById("campoPrecio").classList.toggle("hidden", f.estado.value !== "si");
+    const mostrar = f.estado.value === "si";
+    document.getElementById("campoPrecio").classList.toggle("hidden", !mostrar);
+    document.getElementById("campoUrl").classList.toggle("hidden", !mostrar);
   }
   f.estado.addEventListener("change", actualizarVisibilidadPrecio);
   actualizarVisibilidadPrecio();
@@ -440,6 +460,7 @@
       telefono: f.telefono.value.trim(),
       estado: f.estado.value,
       precio: (f.estado.value === "si" && f.precio.value.trim()) ? parseFloat(f.precio.value.trim()) : null,
+      url: (f.estado.value === "si" && f.url.value.trim()) ? f.url.value.trim() : null,
     };
     btnGuardar.disabled = true;
     try{
@@ -545,6 +566,7 @@
             <span class="badge ${estadoBadgeClass[c.estado] || "badge-pendiente"}">${estadoLabel[c.estado] || "Pendiente"}</span>
           </div>
           ${c.estado === "si" && c.precio ? `<div class="contact-price">${escapeHtml(c.precio)}€ vendidos</div>` : ""}
+          ${c.estado === "si" && c.url ? `<div class="contact-price"><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener" style="color:var(--blue);">${escapeHtml(c.url)}</a></div>` : ""}
           <div class="row-btns">
             <button class="btn-edit" data-id="${c.id}">Editar</button>
             <button class="btn-danger" data-id="${c.id}">Eliminar</button>
@@ -573,6 +595,7 @@
     if(!c) return;
     f.nombre.value = c.nombre; f.oficio.value = c.oficio; f.zona.value = c.zona;
     f.telefono.value = c.telefono; f.estado.value = c.estado; f.precio.value = c.precio;
+    f.url.value = c.url || "";
     actualizarVisibilidadPrecio();
     editandoId = id;
     btnGuardar.textContent = "Guardar cambios";
@@ -645,6 +668,9 @@
     zona: document.getElementById("gZona"),
     precio: document.getElementById("gPrecio"),
     precioMin: document.getElementById("gPrecioMin"),
+    valoracion: document.getElementById("gValoracion"),
+    resenas: document.getElementById("gResenas"),
+    link: document.getElementById("gLink"),
   };
   function gval(el, fallback){ const v = el.value.trim(); return v.length ? v : fallback; }
 
@@ -654,19 +680,25 @@
     const precio = gval(g.precio, "[precio]");
     const precioMin = gval(g.precioMin, "[precio mínimo]");
     const nombre = gval(g.nombre, "");
-    const saludo = nombre ? `Hola ${nombre}, ¿qué tal?` : `Hola, ¿qué tal?`;
+    const valoracion = gval(g.valoracion, "[valoración]");
+    const resenas = gval(g.resenas, "[nº]");
+    const link = gval(g.link, "[link de la web]");
+    const saludo = nombre ? `Hola ${nombre},` : `Hola,`;
 
     document.getElementById("q1").textContent =
-      `"${saludo} Soy ${TU_NOMBRE}, te llamo porque he preparado algo para tu negocio que creo te puede interesar. ¿Tienes 2 minutos?"`;
+      `${saludo} soy ${TU_NOMBRE}. Diseño webs para negocios locales.\n\n` +
+      `He visto tu ficha de Google (${valoracion}★ y ${resenas} reseñas) y he visto que actualmente no tenéis página web. Hoy en día, muchos clientes buscan información sobre un negocio antes de contactar, y no tener web puede hacer que alguna oportunidad se pierda.\n\n` +
+      `Por eso me he adelantado y os he preparado una propuesta de cómo podría quedar:\n\n${link}\n\n` +
+      `Échale un vistazo cuando puedas. Si te gusta la idea, hablamos sin compromiso de precio y de cómo ponerla en marcha.`;
     document.getElementById("q2").textContent =
-      `"Mira, te cuento rápido: vi tu ficha de Google, tienes muy buena valoración, pero no apareces con web cuando la gente busca ${oficio} por ${zona}. Eso significa que ahora mismo esas búsquedas se las está llevando la competencia, y seguramente estés perdiendo bastantes clientes por esa razón."`;
+      nombre
+        ? `"Hola ${nombre}, ¿pudiste echarle un vistazo a la web que te mandé? Cualquier duda, aquí estoy 🙂"`
+        : `"Hola, ¿pudiste echarle un vistazo a la web que te mandé? Cualquier duda, aquí estoy 🙂"`;
     document.getElementById("q3").textContent =
-      `"Te he preparado ya una web de muestra con tu información real — nombre, teléfono, tus reseñas de Google, tus fotos de trabajos. Te paso el link ahora, dale un vistazo mientras hablamos."`;
+      `"¡Genial que te guste! ¿Seguimos y la dejamos publicada ya con tu dominio?"`;
     document.getElementById("q4").textContent =
-      `"¿Qué te parece? ¿Se parece a cómo trabajas tú?"`;
-    document.getElementById("q5").textContent =
       `"Esta web hace que cuando alguien busque '${oficio} ${zona}' en Google, te encuentre a ti, vea tus reseñas reales y te llame o escriba por WhatsApp directamente — sin fricción."`;
-    document.getElementById("q6").textContent =
+    document.getElementById("q5").textContent =
       `"El proyecto completo son ${precio}€, pago único. Sin mensualidades ocultas."`;
     document.getElementById("r1").textContent =
       `"Perfecto, te paso el número de Bizum/cuenta ahora mismo y en cuanto lo confirmes te dejo la web ya funcionando."`;
