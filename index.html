@@ -18,7 +18,7 @@
     --line:#e2e8f0;
     --bg:#fafaf9;
     --card:#ffffff;
-    --green:#16a34a;
+    --green:#15803d;
     --red:#dc2626;
     --blue:#2563eb;
   }
@@ -96,7 +96,7 @@
   .contact-meta{font-size:12.5px;color:var(--gray);margin-top:2px;}
   .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
   .badge-si{background:#dcfce7;color:var(--green);}
-  .badge-no{background:#fee2e2;color:var(--red);}
+  .badge-no{background:#fee2e2;color:#b91c1c;}
   .badge-pensando{background:#fef9c3;color:#92400e;}
   .badge-pendiente{background:#e2e8f0;color:var(--gray);}
   .contact-price{font-size:13.5px;font-weight:700;color:var(--green);margin-top:6px;}
@@ -116,7 +116,7 @@
   .step h2{font-size:14px;margin:14px 0 4px;}
   .section-title{
     font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-    color:var(--amber);margin:22px 0 10px;
+    color:#a16207;margin:22px 0 10px;
   }
   .branch{margin-bottom:10px;}
   .branch b{font-size:13.5px;}
@@ -222,11 +222,11 @@
     </div>
 
     <div class="filters">
-      <div class="filter-chip active" data-filter="todos" role="button" tabindex="0">Todos</div>
-      <div class="filter-chip" data-filter="si" role="button" tabindex="0">Sí</div>
-      <div class="filter-chip" data-filter="no" role="button" tabindex="0">No</div>
-      <div class="filter-chip" data-filter="pensando" role="button" tabindex="0">Se lo piensa</div>
-      <div class="filter-chip" data-filter="pendiente" role="button" tabindex="0">Pendiente</div>
+      <div class="filter-chip active" data-filter="todos" role="button" tabindex="0" aria-pressed="true">Todos</div>
+      <div class="filter-chip" data-filter="si" role="button" tabindex="0" aria-pressed="false">Sí</div>
+      <div class="filter-chip" data-filter="no" role="button" tabindex="0" aria-pressed="false">No</div>
+      <div class="filter-chip" data-filter="pensando" role="button" tabindex="0" aria-pressed="false">Se lo piensa</div>
+      <div class="filter-chip" data-filter="pendiente" role="button" tabindex="0" aria-pressed="false">Pendiente</div>
     </div>
 
     <div id="lista"></div>
@@ -384,14 +384,22 @@
   let contactos = [];
   let filtroActual = "todos";
   let editandoId = null;
+  let cargaSeq = 0;
+  let errorCarga = false;
+  let cargaInicialPendiente = true;
 
   async function cargar(){
+    const seq = ++cargaSeq;
     const lista = document.getElementById("lista");
     lista.innerHTML = '<div class="empty">Cargando...</div>';
+    document.getElementById("emptyState").classList.add("hidden");
     try{
       const res = await fetch(`${REST_URL}?select=*&order=created_at.desc`, { headers: HEADERS });
       if(!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
+      if(seq !== cargaSeq) return;
+      errorCarga = false;
+      cargaInicialPendiente = false;
       contactos = (data || []).map(r => ({
         id: r.id,
         nombre: r.nombre,
@@ -403,9 +411,12 @@
         url: r.url || "",
       }));
     }catch(e){
+      if(seq !== cargaSeq) return;
       console.error("Error cargando de Supabase:", e);
+      errorCarga = true;
       contactos = [];
       lista.innerHTML = '<div class="empty">No se pudo conectar con la base de datos.</div>';
+      document.getElementById("emptyState").classList.add("hidden");
       document.getElementById("statTotal").textContent = "0";
       document.getElementById("statSi").textContent = "0";
       document.getElementById("statEuros").textContent = "0€";
@@ -448,7 +459,7 @@
 
   btnGuardar.addEventListener("click", async () => {
     if(!f.nombre.value.trim()) { f.nombre.focus(); return; }
-    if(f.estado.value === "si" && f.precio.value.trim() && isNaN(parseFloat(f.precio.value.trim()))){
+    if(f.estado.value === "si" && f.precio.value.trim() && !Number.isFinite(Number(f.precio.value.trim()))){
       f.precio.focus();
       return;
     }
@@ -458,9 +469,11 @@
       zona: f.zona.value.trim(),
       telefono: f.telefono.value.trim(),
       estado: f.estado.value,
-      precio: (f.estado.value === "si" && f.precio.value.trim()) ? parseFloat(f.precio.value.trim()) : null,
+      precio: (f.estado.value === "si" && f.precio.value.trim()) ? Number(f.precio.value.trim()) : null,
       url: (f.estado.value === "si" && f.url.value.trim()) ? f.url.value.trim() : null,
     };
+    const idGuardado = editandoId;
+    const formGuardado = Object.values(f).map(el => el.value).join("\u0000");
     btnGuardar.disabled = true;
     try{
       let res;
@@ -478,7 +491,7 @@
         });
       }
       if(!res.ok) throw new Error("HTTP " + res.status);
-      limpiarForm();
+      if(editandoId === idGuardado && Object.values(f).map(el => el.value).join("\u0000") === formGuardado) limpiarForm();
       await cargar();
     }catch(e){
       console.error("Error guardando en Supabase:", e);
@@ -489,8 +502,9 @@
 
   document.querySelectorAll(".filter-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-      document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+      document.querySelectorAll(".filter-chip").forEach(c => { c.classList.remove("active"); c.setAttribute("aria-pressed", "false"); });
       chip.classList.add("active");
+      chip.setAttribute("aria-pressed", "true");
       filtroActual = chip.dataset.filter;
       render();
     });
@@ -512,6 +526,7 @@
   const estadoBadgeClass = {si:"badge-si", no:"badge-no", pensando:"badge-pensando", pendiente:"badge-pendiente"};
 
   function render(){
+    if(errorCarga || cargaInicialPendiente) return;
     const lista = document.getElementById("lista");
     const empty = document.getElementById("emptyState");
     let datos = contactos;
@@ -560,12 +575,12 @@
           <div class="contact-top">
             <div>
               <div class="contact-name">${escapeHtml(c.nombre)}</div>
-              <div class="contact-meta">${escapeHtml(metaParts)}${telefonoHtml ? " · " + telefonoHtml : ""}</div>
+              <div class="contact-meta">${escapeHtml(metaParts)}${telefonoHtml ? (metaParts ? " · " : "") + telefonoHtml : ""}</div>
             </div>
             <span class="badge ${estadoBadgeClass[c.estado] || "badge-pendiente"}">${estadoLabel[c.estado] || "Pendiente"}</span>
           </div>
           ${c.estado === "si" && c.precio ? `<div class="contact-price">${escapeHtml(c.precio)}€ vendidos</div>` : ""}
-          ${c.estado === "si" && c.url ? `<div class="contact-price"><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener" style="color:var(--blue);">${escapeHtml(c.url)}</a></div>` : ""}
+          ${c.estado === "si" && c.url ? (/^https?:\/\//i.test(c.url) ? `<div class="contact-price"><a href="${escapeHtml(c.url)}" target="_blank" rel="noopener" style="color:var(--blue);">${escapeHtml(c.url)}</a></div>` : `<div class="contact-price">${escapeHtml(c.url)}</div>`) : ""}
           <div class="row-btns">
             <button class="btn-edit" data-id="${c.id}">Editar</button>
             <button class="btn-danger" data-id="${c.id}">Eliminar</button>
@@ -608,18 +623,31 @@
   const modalCancelar = document.getElementById("modalCancelar");
 
   function confirmarModal(mensaje){
+    if(!modalOverlay.classList.contains("hidden")) return Promise.resolve(false);
     return new Promise(resolve => {
+      const focoPrevio = document.activeElement;
       modalMensaje.textContent = mensaje;
       modalOverlay.classList.remove("hidden");
+      modalCancelar.focus();
       const limpiar = () => {
         modalOverlay.classList.add("hidden");
         modalAceptar.removeEventListener("click", onAceptar);
         modalCancelar.removeEventListener("click", onCancelar);
+        document.removeEventListener("keydown", onTecla);
+        if(focoPrevio && focoPrevio.isConnected) focoPrevio.focus();
       };
       const onAceptar = () => { limpiar(); resolve(true); };
       const onCancelar = () => { limpiar(); resolve(false); };
+      const onTecla = (e) => {
+        if(e.key === "Escape"){ e.preventDefault(); onCancelar(); return; }
+        if(e.key === "Tab"){
+          e.preventDefault();
+          (document.activeElement === modalCancelar ? modalAceptar : modalCancelar).focus();
+        }
+      };
       modalAceptar.addEventListener("click", onAceptar);
       modalCancelar.addEventListener("click", onCancelar);
+      document.addEventListener("keydown", onTecla);
     });
   }
 
@@ -632,6 +660,7 @@
         headers: HEADERS,
       });
       if(!res.ok) throw new Error("HTTP " + res.status);
+      if(editandoId === id) limpiarForm();
       await cargar();
     }catch(e){
       console.error("Error eliminando en Supabase:", e);
@@ -642,7 +671,7 @@
   function escapeHtml(str){
     const div = document.createElement("div");
     div.textContent = str || "";
-    return div.innerHTML;
+    return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   function resaltarTelefono(telefono, queryDigits){
